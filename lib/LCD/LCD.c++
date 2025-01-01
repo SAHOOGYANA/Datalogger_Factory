@@ -92,24 +92,20 @@ void lcd_flash(char *message, char *message2, bool faultFlag)
              if(passFlag1) lcd.print("test1 passed");
              else lcd.print("test1 failed");
             }
+            
             if(testresult2Flag)
             {
              lcd.setCursor(0,2);          
              if(passFlag2) lcd.print("test2 passed");
              else lcd.print("test2 failed");
             }
-        else
-        {
-            lcd.setCursor(0,2);
-            lcd.print("            ");
-        }
-
             if(faultFlag)
             {
               lcd.setCursor(0,2);
               lcd.print(message2);
             }
         }
+        
         else
         {
             lcd.setCursor(0, 0);
@@ -158,4 +154,10 @@ void lcd_iprint(int msg, int col, int row)
 {
     lcd.setCursor(col, row);
     lcd.print(msg);
+}
+
+void lcd_clear()
+{
+    lcd.setCursor(0,2);
+    lcd.print("            ");
 }

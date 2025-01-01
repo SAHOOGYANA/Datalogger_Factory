@@ -18,6 +18,7 @@ void lcd_blink(String , int, int);
 void lcd_cprint(char* , int, int);
 void lcd_iprint(int , int, int);
 void lcd_c2print(char , int, int);
+void lcd_clear();
 
 
 

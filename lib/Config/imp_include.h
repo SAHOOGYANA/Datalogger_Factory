@@ -26,7 +26,7 @@ String stringTime;
 
 int faultNum;
 char faultCases[6][13] = {"LOW VOLTAGE ", "HIGHPCURRENT","HIGHBCURRENT", "HIGH MOTTEMP", "HIGH C TEMP ", "SPEEDNRISING"};
-char taskState[6][10]= {"READY    ", "CONFIGURE", "FAULT    " , "TESTING  ", "TESTED   ", "STOPPED  "};
+char taskState[6][10]= {"READY    ", "CONFIGURE", "FAULT    " , "TESTING ", "TESTED   ", "STOPPED  "};
 
 struct motorConfig{
   char config[9];

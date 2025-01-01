@@ -74,7 +74,6 @@ void ADC_Scedule()
   {
     //Serial.println(ADMUX);
     resistance = ((1023.000*_Tc - ADC_VALUE ) / ADC_VALUE);
-    Serial.println(ADC_VALUE);
     tempKelvin = 3950 /(10.93 + log(resistance));
     t_m = tempKelvin - 273;
     if(t_m < 0) t_m = 0;
@@ -129,9 +128,8 @@ void ADC_calculations()
 {
     //
 
-
   if (ADC_counter < 100)
-    ADC_VALUE = ADC_VALUE + pow((_ADC_VALUE - 697),2);
+    ADC_VALUE = ADC_VALUE + pow((_ADC_VALUE - 509),2);
   else if ((ADC_counter < 151) & (ADC_counter > 100))
     ADC_VALUE = ADC_VALUE + (_ADC_VALUE - 509);
   else if ((ADC_counter < 202) & (ADC_counter > 151))

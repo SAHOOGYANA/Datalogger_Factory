@@ -56,6 +56,7 @@ void RGB_flash(bool);
 
 void TaskSheduler();
 void fault_cheak();
+void fault_clear_cheak();
 void passfail_cheak();
 void setup_includes();
 void loop_includes();
@@ -241,17 +242,20 @@ ISR(PCINT2_vect)
   if (!(PINK & (1 << PK2)))                                   // Yellow button is pressed
   {
     //Serial.print("pressed");
-    if ((task_state == TESTING) && (!test1Flag)&&(!test2Flag))
+    if ((task_state == TESTED)||(task_state == READY))
     {
       sttNLbtnFlag = true;
-     
+      test1Flag = false;
+      test2Flag = true;
     }
   }
   else if (!(PINK & (1 << PK4)))                              // Green button is pressed
   {
-    if (task_state == READY)
+    if ((task_state == READY)||((task_state == TESTED)))
     {
       sttFLbtnFlag = true;
+      test1Flag = true;
+      test2Flag = false;      
     }
   }
   else if (!(PINK & (1 << PK6)))                              // Black button is pressed
@@ -264,6 +268,8 @@ ISR(PCINT2_vect)
       test2Flag = false;
       testingCounter1 = 0;
       testingCounter2 = 0;
+      testresult1Flag = false;
+      testresult2Flag = false;
     }
   }
 }
@@ -308,9 +314,9 @@ void RGB_set()
 
   else if((task_state == TESTING) && (test2Flag == true))
   {
-    rFlag = true;
+    rFlag = false;
     gFlag = true;
-    bFlag = false;
+    bFlag = true;
   }
 
 
@@ -372,7 +378,7 @@ void TaskSheduler()
       task_state = CONFIGURE;         // enter to configure state
     }
 
-    if ( sttFLbtnFlag)  // any one of the green or yellow pressed
+    if ( sttFLbtnFlag )  // any one of the green or yellow pressed
     {
       spdpid.reset();
       task_state = TESTING;
@@ -380,6 +386,15 @@ void TaskSheduler()
       sttFLbtnFlag = false;
       test1Flag = true;
     }
+
+    if ( sttNLbtnFlag )  // any one of the green or yellow pressed
+    {
+      spdpid.reset();
+      task_state = TESTING;
+      sttNLbtnFlag = false;
+      sttFLbtnFlag = false;
+      test2Flag = true;
+    }   
     }
     break;
 
@@ -394,6 +409,10 @@ void TaskSheduler()
       faultFlag = false;
       key = '\0';
      }
+  }
+  if(ADC_counter == total_samples + 7)
+  {
+    fault_clear_cheak();
   }
     break;  
 
@@ -440,10 +459,8 @@ void TaskSheduler()
     // data showing on 7 seg display
     if(ADC_counter == total_samples + 6)
     {
-    RGB_flash(false);
 
     testingCounter2++;                                //Used for fault detection
-    
     fault_cheak();
 
     }
@@ -456,12 +473,20 @@ void TaskSheduler()
     {
       if (((RPM - refRPM) < 20) & (RPM - refRPM) > -20)
       { 
+        passfail_cheak();
         if (testingCounter1 == 27)
         {
-
+          if(passFlag1)
+          {
+          stringData1 = String(currenttoSave) + ", " + String(rpmtoSave) + ", " + String(tempmotortoSave) +"- PASSED" ;
+          }
+          else
+          {
+           stringData1 = String(currenttoSave) + ", " + String(rpmtoSave) + ", " + String(tempmotortoSave) +"- FAILED" ;
+          }
           testingCounter1 = 0;
+          task_state = TESTED;
           test1Flag = false;
-          testresult1Flag = true;
         }
 
         else if(testingCounter1 == 26)
@@ -470,9 +495,6 @@ void TaskSheduler()
           currenttoSave = currenttoSave/5;
           rpmtoSave = rpmtoSave/5;
           tempmotortoSave = tempmotortoSave/5;
-          
-          stringData1 = String(currenttoSave) + ", " + String(rpmtoSave) + ", " + String(tempmotortoSave) +"." ;
-          
 
           currenttoSave = 0;
           rpmtoSave = 0;
@@ -498,8 +520,8 @@ void TaskSheduler()
           currenttoSave = 0;
           rpmtoSave = 0;
           tempmotortoSave = 0;
-           passFlag1 = true;
-           testingCounter1++;
+          testresult1Flag = true;
+          testingCounter1++;
         }
         else
           testingCounter1++;
@@ -514,34 +536,47 @@ void TaskSheduler()
         testingCounter2 = 0;
         test1Flag = false;
         test2Flag = false;
-
       }
     }
 
     else if (test1Flag == false & test2Flag == false) //Test pause
     {
+      RGB_flash(true);
        if(key == 'O')
        {
         key = '\0';
         task_state = READY;
         testresult1Flag = false;
        }
-
-        if(sttNLbtnFlag)
-       {
-        sttFLbtnFlag = false;
-        sttNLbtnFlag = false;
-        testresult1Flag = false;
-        test2Flag = true;
-       }
+      //   if(sttNLbtnFlag)
+      //  {
+      //   sttFLbtnFlag = false;
+      //   sttNLbtnFlag = false;
+      //   testresult1Flag = false;
+      //   testresult2Flag = false;        
+      //   test2Flag = true;
+      //   RGB_set();
+      //   RGB_flash(false);
+      //  }
+      //   if(sttFLbtnFlag)
+      //  {
+      //   sttFLbtnFlag = false;
+      //   sttNLbtnFlag = false;
+      //   testresult1Flag = false;        
+      //   testresult2Flag = false;
+      //   test1Flag = true;
+      //   RGB_set();
+      //   RGB_flash(false);
+      //  }       
     }
 
     else if (test1Flag == false & test2Flag == true)  //Test2 tasks
     {
       if (rpmPwm == pwm_max_out)
       {
+       passfail_cheak();
 
-       if (testingCounter1 == 40 | ((stpbtnFlag == true) & (testingCounter1 > 17)))
+       if (testingCounter1 == 40)
         {
           testingCounter1 = 0;
           task_state = TESTED;
@@ -554,9 +589,6 @@ void TaskSheduler()
           currenttoSave = currenttoSave/5;
           rpmtoSave = rpmtoSave/5;
           tempmotortoSave = tempmotortoSave/5;
-          
-          stringData2 = String(currenttoSave) + ", " + String(rpmtoSave) + ", " + String(tempmotortoSave) +"." ;
-          
           currenttoSave = 0;
           rpmtoSave = 0;
           tempmotortoSave = 0;
@@ -566,6 +598,14 @@ void TaskSheduler()
 
         else if(testingCounter1 == 17)
         {
+          if(passFlag2)
+          {
+          stringData1 = String(currenttoSave) + ", " + String(rpmtoSave) + ", " + String(tempmotortoSave) +"- PASSED" ;
+          }
+          else
+          {
+           stringData1 = String(currenttoSave) + ", " + String(rpmtoSave) + ", " + String(tempmotortoSave) +"- FAILED" ;
+          }
           testresult2Flag  = true;
           testingCounter1++;
         }
@@ -591,10 +631,7 @@ void TaskSheduler()
       }
     }
     }
-    if(ADC_counter == total_samples + 8)
-    {
-      passfail_cheak();
-    }
+
     break;
 
   case TESTED:
@@ -607,24 +644,38 @@ void TaskSheduler()
     spdpid.reset();
     RGB_flash(true);
 
-    if ((testedCounter1 == 29) | ((key == 'O') & (testedCounter1 > 10)))
+    if (key == 'O')
     {
       task_state = READY;
-       testresult2Flag  = false;
-      testedCounter1 = 0;
+      testresult1Flag = false;
+      testresult2Flag  = false;
       key = '\0';
 
     }
 
-    else if(testedCounter1 == 2)
+    if(key == 'E')
     {
-          sdcard_write(_fileName, stringTime);
-          sdcard_write(_fileName, stringData1);  // Writing in the sd card
-          sdcard_write(_fileName, stringData2);  // Writing in the sd card
-          testedCounter1++;
+      sdcard_write(_fileName, stringTime);
+      sdcard_write(_fileName, stringData1);  // Writing in the sd card
+      sdcard_write(_fileName, stringData2);  // Writing in the sd card
+      task_state = READY;
+      testresult1Flag = false;
+      testresult2Flag  = false;
     }
-    else
-      testedCounter1++;
+
+    if(sttFLbtnFlag || sttNLbtnFlag)
+    {
+      RGB_set();
+      RGB_flash(false);
+      testingCounter1 = 0;
+      testingCounter2 = 0;
+      task_state = TESTING;
+      testresult1Flag = false;
+      testresult2Flag  = false;
+      sttNLbtnFlag = false;
+      sttFLbtnFlag = false;
+    }
+
     }
     break;
 
@@ -692,7 +743,7 @@ void speedSet()                    //PWM set for speed control
 
   if(rpmCounter == rpmPrescalar) 
   {
-  RPM = rotation * 10;
+  RPM = rotation * 6;
   rotation =0;
   //Serial.println(RPM);
   if(task_state == TESTING)
@@ -769,40 +820,98 @@ void fault_cheak()
     faultFlag = true;
     faultNum = 0;
    }
+
+   if((testingCounter2 == 200 ) & (testingCounter1 < 20))
+   {
+    task_state = FAULT;
+    faultNum = 5;
+    faultFlag = true;
+
+    test1Flag = false;
+    test2Flag = false;
+   }
+}
+
+void fault_clear_cheak()
+{
+  if(faultNum == 0)
+  {
+    if(Batt_Voltage > refVoltage - 2)
+   {
+    task_state = READY;
+    faultFlag = false;
+   }
+  }
+  // else if(faultNum == 1)
+  // {
+
+  // }
+  // else if(faultNum == 2)
+  // {
+
+  // }
+  else if(faultNum == 3)
+  {
+    if(t_m < 90)
+   {
+    task_state = READY;
+    faultFlag = false;
+   }
+  }
+  else if(faultNum == 4)
+  {
+    if(t_c < 90)
+   {
+    task_state = READY;
+    faultFlag = false;
+   }
+  }
+
 }
 
 void passfail_cheak()
 {
   if(test1Flag)
   {
-  if((testedCounter1>0) && (Batt_current < refCurrent1))
+  if(Batt_current < refCurrent1)
   {
       passfailCounter++;
   }
-  if((testingCounter1 == 20) && (passfailCounter > 19))
+
+  if(testingCounter1 == 20)
   {
+   if(passfailCounter > 15)
+   {
+    //Serial.println(passfailCounter);
     passFlag1 = true;
-  }
-  else
-  {
+   }
+   else
+   {
     passFlag1 = false;
+   }
+    passfailCounter = 0;
   }
   }
 
   if(test2Flag)
   {
-  if((testedCounter1>0) && (Batt_current < refCurrent2))
+  if(Batt_current < refCurrent2)
   {
       passfailCounter++;
   }
-  if((testingCounter1 == 14) && (passfailCounter > 13))
+  if(testingCounter1 == 14)
   {
+   if(passfailCounter > 10)
+   {
     passFlag2 = true;
-  }
-  else
-  {
+   }
+   else
+   {
    passFlag2 = false;
+   }
+   passfailCounter = 0;
   }
+
   }
 
 }
@@ -929,6 +1038,7 @@ void loop_includes()             //All the works to be done in void loop
     if (task_state != prev_state)
     {
       RGB_set();
+      lcd_clear();
       prev_state = task_state;
       lcd_cprint(taskState[task_state], 0, 3);
       EEPROM.get(configAddress, configNum);
